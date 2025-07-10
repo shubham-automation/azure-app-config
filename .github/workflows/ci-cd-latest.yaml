@@ -1,9 +1,6 @@
 name: Affiliate Deployment
 
 on:
-  push:
-    branches:
-      - develop
   workflow_dispatch:
     inputs:
       affiliate:
