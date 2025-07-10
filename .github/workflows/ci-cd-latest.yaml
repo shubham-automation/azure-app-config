@@ -1,0 +1,141 @@
+name: Affiliate Deployment
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+    inputs:
+      affiliate:
+        description: 'Select affiliate to deploy to'
+        required: true
+        type: choice
+        options:
+          - geisinger
+          - cone
+      environment:
+        description: 'Select environment to deploy to'
+        required: true
+        default: 'qa'
+        type: choice
+        options:
+          - qa
+          - uat
+          - prod
+
+jobs:
+  build:
+    runs-on: arc-org-runner-set
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}"}'
+
+      - name: Login to Azure Container Registry
+        run: az acr login --name ${{ secrets.ACR_REGISTRY }}
+
+      - name: Get branch name
+        id: get_branch
+        run: |
+          echo "BRANCH=${{ github.ref_name }}" >> $GITHUB_ENV
+
+      - name: Get short commit ID
+        id: get_commit
+        run: |
+          SHORT_COMMIT_ID=$(git rev-parse --short HEAD)
+          echo "SHORT_COMMIT_ID=$SHORT_COMMIT_ID" >> $GITHUB_ENV
+
+      - name: Build, Tag, and Push Image to ACR
+        run: |
+          IMAGE_TAG=$(echo "$BRANCH" | cut -d'/' -f2)-$SHORT_COMMIT_ID
+          fi
+          docker build -t ${{ secrets.ACR_REGISTRY }}.azurecr.io/azconfigdemo:$IMAGE_TAG .
+          docker push ${{ secrets.ACR_REGISTRY }}.azurecr.io/azconfigdemo:$IMAGE_TAG
+
+  deploy:
+    runs-on: arc-org-runner-set
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}"}'
+
+      - name: Determine AKS cluster and namespace
+        id: cluster
+        run: |
+          case ${{ github.event.inputs.environment }} in
+            "dev")
+              echo "cluster_name=dev-cluster" >> $GITHUB_OUTPUT
+              echo "namespace=${{ github.event.inputs.customer_id || 'customer1' }}-dev" >> $GITHUB_OUTPUT
+              echo "subscription_id=${{ secrets.DEV_SUBSCRIPTION_ID }}" >> $GITHUB_OUTPUT
+              echo "managed_identity_client_id=${{ secrets.MANAGED_IDENTITY_CLIENT_ID }}" >> $GITHUB_OUTPUT
+              ;;
+            "qa")
+              echo "cluster_name=qa-cluster" >> $GITHUB_OUTPUT
+              echo "namespace=${{ github.event.inputs.customer_id || 'customer1' }}-qa" >> $GITHUB_OUTPUT
+              echo "subscription_id=${{ secrets.QA_SUBSCRIPTION_ID }}" >> $GITHUB_OUTPUT
+              echo "managed_identity_client_id=${{ secrets.MANAGED_IDENTITY_CLIENT_ID }}" >> $GITHUB_OUTPUT
+              ;;
+            "uat")
+              echo "cluster_name=${{ github.event.inputs.customer_id || 'customer1' }}-uat-cluster" >> $GITHUB_OUTPUT
+              echo "namespace=default" >> $GITHUB_OUTPUT
+              echo "subscription_id=${{ secrets.UAT_SUBSCRIPTION_ID }}" >> $GITHUB_OUTPUT
+              echo "managed_identity_client_id=${{ secrets.MANAGED_IDENTITY_CLIENT_ID }}" >> $GITHUB_OUTPUT
+              ;;
+            "prod")
+              echo "cluster_name=shubham-appconfig" >> $GITHUB_OUTPUT
+              echo "namespace=default" >> $GITHUB_OUTPUT
+              echo "subscription_id=${{ secrets.PROD_SUBSCRIPTION_ID }}" >> $GITHUB_OUTPUT
+              echo "managed_identity_client_id=${{ secrets.MANAGED_IDENTITY_CLIENT_ID }}" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+      - name: Get AKS credentials
+        run: |
+          az account set --subscription ${{ steps.cluster.outputs.subscription_id }}
+          az aks get-credentials --resource-group ${{ env.APP_NAME }} --name ${{ steps.cluster.outputs.cluster_name }}
+          kubelogin convert-kubeconfig -l azurecli
+
+      - name: Get branch name
+        id: get_branch
+        run: |
+          echo "BRANCH=${{ github.ref_name }}" >> $GITHUB_ENV
+
+      - name: Get short commit ID
+        id: get_commit
+        run: |
+          SHORT_COMMIT_ID=$(git rev-parse --short HEAD)
+          echo "SHORT_COMMIT_ID=$SHORT_COMMIT_ID" >> $GITHUB_ENV
+
+      - name: Generate ACR pull secret
+        id: get_dockerconfigjson
+        run: |
+          SECRET_JSON=$(kubectl create secret docker-registry acr-pull-secret \
+               --docker-server=${{ secrets.ACR_REGISTRY }}.azurecr.io \
+               --docker-username=${{ secrets.ACR_USERNAME }} \
+               --docker-password=${{ secrets.ACR_PASSWORD }} \
+               --namespace=dev \
+               --dry-run=client \
+               -o json | jq -r '.data.".dockerconfigjson"')
+               
+          echo "dockerconfigjson=$SECRET_JSON" >> $GITHUB_OUTPUT
+
+      - name: Deploy Helm chart
+        run: |
+          IMAGE_TAG=$(echo "$BRANCH" | cut -d'/' -f2)-$SHORT_COMMIT_ID
+          helm upgrade --install intelligent-triage-microservice-1-${{ github.event.inputs.customer_id }} ./helm \
+            --set image.repository=${{ secrets.ACR_REGISTRY }}.azurecr.io/azconfigdemo \
+            --set image.tag="$IMAGE_TAG" \
+            --set environment=${{ github.event.inputs.environment }} \
+            --set appConfig.endpoint=${{ steps.appconfig.outputs.appconfig_endpoint }} \
+            --set appConfig.auth.managedIdentityClientId=${{ steps.cluster.outputs.managed_identity_client_id }} \
+            --set imagePullSecret.dockerconfigjson=${{ steps.get_dockerconfigjson.outputs.dockerconfigjson }} \
+            -f ${{ github.event.inputs.customer_id }}-values.yaml \
+            --wait

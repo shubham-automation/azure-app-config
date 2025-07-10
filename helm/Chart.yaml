@@ -1,0 +1,9 @@
+apiVersion: v2
+name: customer-app
+description: Helm chart for multi-customer Python app with Azure App Configuration Provider
+version: 0.1.0
+appVersion: "1.0"
+#dependencies:
+#  - name: azure-app-configuration-kubernetes-provider
+#    version: "2.3.0"
+#    repository: "https://microsoft.github.io/azure-app-configuration-kubernetes-provider"

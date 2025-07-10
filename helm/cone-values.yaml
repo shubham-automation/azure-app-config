@@ -1,0 +1,27 @@
+replicaCount: 1
+
+environment: ""
+
+image:
+  repository: ""
+  tag: ""
+  pullPolicy: Always
+
+service:
+  type: LoadBalancer
+  port: 80
+
+appConfig:
+  customerId: "cone"
+  configKey: "intelligent-traige.microservice1.config"
+  endpoint: ""
+  auth:
+    managedIdentityClientId: ""
+    serviceAccountName: "{{ .Release.Name }}-appconfig-sa"
+  refresh:
+    enabled: true
+    interval: "30s"
+
+imagePullSecret:
+  name: acr-secret
+  dockerconfigjson: ""

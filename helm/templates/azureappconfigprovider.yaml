@@ -1,0 +1,21 @@
+apiVersion: azconfig.io/v1
+kind: AzureAppConfigurationProvider
+metadata:
+  name: {{ .Release.Name }}-appconfig-provider
+  namespace: {{ .Release.Namespace }}
+spec:
+  endpoint: {{ .Values.appConfig.endpoint }}
+  target:
+    configMapName: {{ .Release.Name }}-config
+  configuration:
+    selectors:
+    - keyFilter: common-config
+      labelFilter: common-config-{{ .Values.environment }}
+    - keyFilter: "{{ .Values.appConfig.configKey }}"
+      labelFilter: "{{ .Values.environment }}-{{ .Values.appConfig.customerId }}"
+    refresh:
+      enabled: {{ .Values.appConfig.refresh.enabled }}
+      interval: {{ .Values.appConfig.refresh.interval }}  
+  auth:
+      managedIdentityClientId: {{ .Values.appConfig.auth.managedIdentityClientId }}
+#      serviceAccountName: {{ .Release.Name }}-appconfig-sa

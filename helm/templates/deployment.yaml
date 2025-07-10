@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-app
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+      annotations:
+        reloader.stakater.com/auto: "true"  # Auto-reload on ConfigMap changes
+    spec:
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecret.name }}
+      containers:
+      - name: affiliate-app
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: 5000
+        env:
+        - name: COMMON_CONFIG
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Release.Name }}-config
+              key: common-config
+              optional: true
+        - name: INTELLIGENT_TRIAGE_MICROSERVICE1_CONFIG
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Release.Name }}-config
+              key: intelligent-traige.microservice1.config
+              optional: true
