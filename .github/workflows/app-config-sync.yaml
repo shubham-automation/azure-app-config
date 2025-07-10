@@ -53,4 +53,7 @@ jobs:
               echo "label=${{ github.event.inputs.environment }}-${{ github.event.inputs.affiliate }}" >> $GITHUB_OUTPUT
               ;;
           esac
+
+      - name: Import App Configuration
+        run: |
           az appconfig kv import --endpoint ${{ steps.appconfig.outputs.appconfig_endpoint }} --auth-mode login -s file --path config/${{ github.event.inputs.affiliate }}/appconfig.yaml --format json --label ${{ steps.appconfig.outputs.label }} --yes
