@@ -65,7 +65,7 @@ jobs:
       - name: Get AKS credentials
         run: |
           az account set --subscription ${{ steps.cluster.outputs.subscription_id }}
-          az aks get-credentials --resource-group ${{ env.APP_NAME }} --name ${{ steps.cluster.outputs.cluster_name }}
+          az aks get-credentials --resource-group ${{ secrets.K8S_RESOURCE_GROUP }} --name ${{ steps.cluster.outputs.cluster_name }} --overwrite-existing
           kubelogin convert-kubeconfig -l azurecli
 
       - name: Get branch name
