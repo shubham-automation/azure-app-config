@@ -95,12 +95,12 @@ jobs:
       - name: Deploy Helm chart
         run: |
           IMAGE_TAG=$(echo "$BRANCH" | cut -d'/' -f2)
-          helm upgrade --install intelligent-triage-microservice-1-${{ github.event.inputs.customer_id }} ./helm \
+          helm upgrade --install intelligent-triage-microservice-1-${{ github.event.inputs.affiliate }} ./helm \
             --set image.repository=${{ secrets.ACR_REGISTRY }}.azurecr.io/azconfigdemo \
             --set image.tag="$IMAGE_TAG" \
             --set environment=${{ github.event.inputs.environment }} \
             --set appConfig.endpoint=${{ steps.appconfig.outputs.appconfig_endpoint }} \
             --set appConfig.auth.managedIdentityClientId=${{ steps.cluster.outputs.managed_identity_client_id }} \
             --set imagePullSecret.dockerconfigjson=${{ steps.get_dockerconfigjson.outputs.dockerconfigjson }} \
-            -f ${{ github.event.inputs.customer_id }}-values.yaml \
+            -f helm/${{ github.event.inputs.affiliate }}-values.yaml \
             --wait
