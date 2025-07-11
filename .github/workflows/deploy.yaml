@@ -62,6 +62,24 @@ jobs:
               ;;
           esac
 
+      - name: Determine App Configuration Endpoint
+        id: appconfig
+        run: |
+          case ${{ github.event.inputs.environment }} in
+            "dev")
+              echo "appconfig_endpoint=${{ secrets.NONPROD_APPCONFIG_ENDPOINT }}" >> $GITHUB_OUTPUT
+              ;;
+            "qa")
+              echo "appconfig_endpoint=${{ secrets.NONPROD_APPCONFIG_ENDPOINT }}" >> $GITHUB_OUTPUT
+              ;;
+            "uat")
+              echo "appconfig_endpoint=${{ secrets.NONPROD_APPCONFIG_ENDPOINT }}" >> $GITHUB_OUTPUT
+              ;;
+            "prod")
+              echo "appconfig_endpoint=${{ secrets.PROD_APPCONFIG_ENDPOINT }}" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
       - name: Get AKS credentials
         run: |
           az account set --subscription ${{ steps.cluster.outputs.subscription_id }}
