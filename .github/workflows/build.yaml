@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: arc-org-runner-set
+    runs-on: arc-org-runner-set-appconfig
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4

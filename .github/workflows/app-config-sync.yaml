@@ -22,7 +22,7 @@ on:
 
 jobs:
   deploy-azure-appconfig:
-    runs-on: arc-org-runner-set
+    runs-on: arc-org-runner-set-appconfig
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
