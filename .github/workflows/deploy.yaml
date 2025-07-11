@@ -103,4 +103,5 @@ jobs:
             --set appConfig.auth.managedIdentityClientId=${{ steps.cluster.outputs.managed_identity_client_id }} \
             --set imagePullSecret.dockerconfigjson=${{ steps.get_dockerconfigjson.outputs.dockerconfigjson }} \
             -f helm/${{ github.event.inputs.affiliate }}-values.yaml \
+            --namespace default \
             --wait
